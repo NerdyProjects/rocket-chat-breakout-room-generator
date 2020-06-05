@@ -9,13 +9,14 @@ load_dotenv()
 
 user = os.getenv("RC_USERNAME")
 pw = os.getenv("RC_PASSWORD")
-group_size = 5
-channel = 'zirkuszelt'
+group_size = 4
+channel = 'breakout-test'
 server = 'https://chat.klimacamp-leipzigerland.de'
+breakout_time = 15
 bbb_server = [
-        { 'server': 'bbb1.klimacamp-leipzigerland.de', 'secret': os.getenv("BBB1_SECRET"), 'capacity': 100 },
-        { 'server': 'bbb2.klimacamp-leipzigerland.de', 'secret': os.getenv("BBB2_SECRET"), 'capacity': 100 }
-        #{ 'server': 'meet.livingutopia.org', 'secret': os.getenv("BBB3_SECRET"), 'capacity': 100 }
+        { 'server': 'bbb1.klimacamp-leipzigerland.de', 'secret': os.getenv("BBB1_SECRET"), 'capacity': 100, 'phone': '+49 3222 9980 230' },
+        { 'server': 'bbb2.klimacamp-leipzigerland.de', 'secret': os.getenv("BBB2_SECRET"), 'capacity': 100 },
+        { 'server': 'meet.livingutopia.org', 'secret': os.getenv("BBB3_SECRET"), 'capacity': 50, 'phone': '+49 5563 263 9980' }
         ]
 
 class MyRocket(RocketChat):
@@ -26,15 +27,22 @@ bbb = [BigBlueButton(x['server'], x['secret']) for x in bbb_server]
 
 for b in bbb:
     print('next server')
-    pprint(b.get_default_config_xml())
 
 rocket = MyRocket(user, pw, server_url=server)
 
-room = rocket.channels_info(channel=channel).json()
-room_id = room['channel']['_id']
-#pprint(room)
+#room = rocket.channels_info(channel=channel).json()
+room = rocket.rooms_info(room_name=channel).json()
+pprint(room)
+room_id = room['room']['_id']
 
+print('querying channel members')
 members = rocket.channels_members(room_id=room_id, count=0).json()
+pprint(members)
+
+if not members['success']:
+    print('retrying query as group members...')
+    members = rocket.groups_members(room_id=room_id, count=0).json()
+    pprint(members)
 
 online_members = [x for x in members['members'] if x['status'] == 'online']
 groups = len(online_members) // group_size
@@ -55,13 +63,27 @@ meeting = None
 meeting_id = None
 for m in online_members:
     if meeting is None or meeting_size >= group_size:
+        if (assigned + group_size) > bbb_server[use_bbb]['capacity']:
+            print('switching to next BBB server after assigning {} people to {}'.format(assigned, bbb_server[use_bbb]['server']))
+            use_bbb = use_bbb + 1
+            assigned = 0
+            if use_bbb >= len(bbb_server):
+                print('Failure: No BBB server capacity left!')
+                exit()
         meeting_size = 0
         meeting_id = 'bzgs' + str(assigned) + 'meet'
-        meeting = bbb[use_bbb].create_meeting(meeting_id, {'attendeePW': 'attendee', 'moderatorPW': 'moderator', 'duration': 5})
+        meeting = bbb[use_bbb].create_meeting(meeting_id, {'attendeePW': 'attendee', 'moderatorPW': 'moderator', 'duration': breakout_time})['xml']
         pprint(meeting)
     nick = m['name'] if 'name' in m else m['username']
     join = bbb[use_bbb].get_join_meeting_url(nick, meeting_id, 'attendee')
     pprint(join)
+    chat = rocket.im_create(m['username']).json()
+    pprint(chat)
+    if 'phone' in bbb_server[use_bbb]:
+        message = 'Deine Bezugsgruppe trifft sich jetzt für {} Minuten in der folgenden Videokonferenz: {}\nDu kannst unter Verwendung des Konferenzcodes {} auch per Telefoneinwahl (deutsche Festnetznummer) teilnehmen: {} '.format(breakout_time, join, meeting['voiceBridge'], bbb_server[use_bbb]['phone'])
+    else:
+        message = 'Deine Bezugsgruppe trifft sich jetzt für {} Minuten in der folgenden Videokonferenz: {}'.format(breakout_time, join)
+    rocket.chat_post_message(message, room_id=chat['room']['_id'])
     assigned = assigned + 1
     meeting_size = meeting_size + 1
 
