@@ -1,2 +1,3 @@
 rocketchat_API
 python-dotenv
+bigbluebutton_api_python
