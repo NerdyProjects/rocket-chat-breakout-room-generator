@@ -7,12 +7,14 @@ import random
 
 load_dotenv()
 
+dry_run = True
 user = os.getenv("RC_USERNAME")
 pw = os.getenv("RC_PASSWORD")
 group_size = 4
-channel = 'breakout-test'
+channel = 'zirkuszelt'
 server = 'https://chat.klimacamp-leipzigerland.de'
 breakout_time = 15
+ignore_users = ['bezugsgruppenbot']
 bbb_server = [
         { 'server': 'bbb1.klimacamp-leipzigerland.de', 'secret': os.getenv("BBB1_SECRET"), 'capacity': 100, 'phone': '+49 3222 9980 230' },
         { 'server': 'bbb2.klimacamp-leipzigerland.de', 'secret': os.getenv("BBB2_SECRET"), 'capacity': 100 },
@@ -44,7 +46,7 @@ if not members['success']:
     members = rocket.groups_members(room_id=room_id, count=0).json()
     pprint(members)
 
-online_members = [x for x in members['members'] if x['status'] == 'online']
+online_members = [x for x in members['members'] if x['status'] == 'online' and x['username'] not in ignore_users]
 groups = len(online_members) // group_size
 remainder_group_size = len(online_members) % group_size
 
@@ -72,18 +74,32 @@ for m in online_members:
                 exit()
         meeting_size = 0
         meeting_id = 'bzgs' + str(assigned) + 'meet'
-        meeting = bbb[use_bbb].create_meeting(meeting_id, {'attendeePW': 'attendee', 'moderatorPW': 'moderator', 'duration': breakout_time})['xml']
+        if not dry_run:
+            meeting = bbb[use_bbb].create_meeting(meeting_id, {'attendeePW': 'attendee', 'moderatorPW': 'moderator', 'duration': breakout_time})['xml']
+        else:
+            meeting = {'voiceBridge': 'test-bridge'}
         pprint(meeting)
     nick = m['name'] if 'name' in m else m['username']
-    join = bbb[use_bbb].get_join_meeting_url(nick, meeting_id, 'attendee')
-    pprint(join)
-    chat = rocket.im_create(m['username']).json()
-    pprint(chat)
-    if 'phone' in bbb_server[use_bbb]:
-        message = 'Deine Bezugsgruppe trifft sich jetzt für {} Minuten in der folgenden Videokonferenz: {}\nDu kannst unter Verwendung des Konferenzcodes {} auch per Telefoneinwahl (deutsche Festnetznummer) teilnehmen: {} '.format(breakout_time, join, meeting['voiceBridge'], bbb_server[use_bbb]['phone'])
+    if not dry_run:
+        join = bbb[use_bbb].get_join_meeting_url(nick, meeting_id, 'attendee')
     else:
-        message = 'Deine Bezugsgruppe trifft sich jetzt für {} Minuten in der folgenden Videokonferenz: {}'.format(breakout_time, join)
-    rocket.chat_post_message(message, room_id=chat['room']['_id'])
+        join = 'https://test.join.url'
+    pprint(join)
+    if not dry_run:
+        chat = rocket.im_create(m['username']).json()
+        pprint(chat)
+    else:
+        print('would create chat with {}'.format(m['username']))
+
+    english_message = 'You have been assigned to an affinity group with some random people. We invite you to have a conference with them for some minutes.'
+    if 'phone' in bbb_server[use_bbb]:
+        message = 'Deine zufällig zusammengewürfelte Bezugsgruppe trifft sich jetzt für {} Minuten in der folgenden Videokonferenz: {}\nDu kannst unter Verwendung des Konferenzcodes {} auch per Telefoneinwahl (deutsche Festnetznummer) teilnehmen: {}\n{}'.format(breakout_time, join, meeting['voiceBridge'], bbb_server[use_bbb]['phone'], english_message)
+    else:
+        message = 'Deine zufällig zusammengewürfelte Bezugsgruppe trifft sich jetzt für {} Minuten in der folgenden Videokonferenz: {}\n{}'.format(breakout_time, join, english_message)
+    if not dry_run:
+        rocket.chat_post_message(message, room_id=chat['room']['_id'])
+    else:
+        print('would post message {}'.format(message))
     assigned = assigned + 1
     meeting_size = meeting_size + 1
 
