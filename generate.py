@@ -7,17 +7,17 @@ import random
 
 load_dotenv()
 
-dry_run = True
+dry_run = False
 user = os.getenv("RC_USERNAME")
 pw = os.getenv("RC_PASSWORD")
 group_size = 4
 channel = 'zirkuszelt'
 server = 'https://chat.klimacamp-leipzigerland.de'
-breakout_time = 15
+breakout_time = 9
 ignore_users = ['bezugsgruppenbot']
 bbb_server = [
-        { 'server': 'bbb1.klimacamp-leipzigerland.de', 'secret': os.getenv("BBB1_SECRET"), 'capacity': 100, 'phone': '+49 3222 9980 230' },
-        { 'server': 'bbb2.klimacamp-leipzigerland.de', 'secret': os.getenv("BBB2_SECRET"), 'capacity': 100 },
+        { 'server': 'bbb1.klimacamp-leipzigerland.de', 'secret': os.getenv("BBB1_SECRET"), 'capacity': 150, 'phone': '+49 3222 9980 230' },
+        { 'server': 'bbb2.klimacamp-leipzigerland.de', 'secret': os.getenv("BBB2_SECRET"), 'capacity': 150 },
         { 'server': 'meet.livingutopia.org', 'secret': os.getenv("BBB3_SECRET"), 'capacity': 50, 'phone': '+49 5563 263 9980' }
         ]
 

@@ -21,13 +21,13 @@ bbb = [BigBlueButton(x['server'], x['secret']) for x in bbb_server]
 def printMeeting(m):
     if args.details:
         print(m)
-    if (len(m['attendees']) > 0 and isinstance(m['attendees']['attendee'], list)):
+    if ('attendees' in m and len(m['attendees']) > 0 and isinstance(m['attendees']['attendee'], list)):
         attendees = len(m['attendees']['attendee'])
-    elif len(m['attendees']) == 0:
+    elif 'attendees' in m and len(m['attendees']) == 0:
         attendees = 0
     else:
         attendees = 1
-    print('Meeting {} with {} attendees:'.format(m['meetingName'], attendees))
+    print('Meeting {} {} with {} attendees:'.format(m['meetingName'], m['meetingID'], attendees))
 
 for b in bbb:
     print('next server:')
@@ -37,7 +37,7 @@ for b in bbb:
             for meeting in m['meeting']:
                 printMeeting(meeting)
         else:
-            printMeeting(m)
+            printMeeting(m['meeting'])
     else:
         print('No meetings!')
 
